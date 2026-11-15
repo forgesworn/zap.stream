@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   deploy:
+    if: github.repository == 'v0l/zap.stream'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
