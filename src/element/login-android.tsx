@@ -37,7 +37,10 @@ export function AndroidLogin({ onConnect }: { onConnect: (signer: AndroidSigner)
   return (
     <div className="flex flex-col gap-4">
       <p>
-        <FormattedMessage defaultMessage="Use Cambium, Amber or another NIP-55 signer installed on this Android device. Your private key stays with your signer. Each signing request needs approval and a pasted result." />
+        <FormattedMessage defaultMessage="Use Cambium or another compatible signer installed on this Android device. Your private key stays with your signer. Each signing request needs approval and a pasted result." />
+      </p>
+      <p>
+        <FormattedMessage defaultMessage="For Amber, choose Remote signer and paste its bunker link instead." />
       </p>
       <PrimaryButton onClick={connect} disabled={busy}>
         <FormattedMessage defaultMessage="Connect Android signer" />

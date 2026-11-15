@@ -42,6 +42,62 @@ protocol fixture. Neither is an Android app launch or a Heartwood hardware test.
 profiles exercise browser layout and interaction, not an Android operating system. Previously
 recorded real Bark and Signet checks complement these fixtures; the suite does not install either app.
 
+## Amber compatibility
+
+Amber 6.6.9 is **not verified for the Android clipboard route**. Its
+[`getIntentDataWithoutExtras` parser](https://github.com/greenart7c3/Amber/blob/v6.6.9/app/src/main/java/com/greenart7c3/nostrsigner/service/IntentUtils.kt#L194-L222)
+decodes the entire URI before separating the payload from query parameters. A `%3F` inside an
+encoded event or message becomes a `?` delimiter and truncates the payload. Reproducing that
+source expression with this fork's encoded event containing `hello?` produces invalid event JSON.
+This is a source-level reproduction, not an installed Amber APK test.
+
+The login screens and README direct Amber users to **Remote signer** with a bunker link. That
+route avoids the Android URI parser. The NIP-46 protocol is covered by the loopback suite;
+an installed Amber app has not been exercised, so this recommendation is not a compatibility receipt.
+
+## Pending Cambium installed-device acceptance
+
+**Status: pending.** On 2026-11-15, ADB listed no attached Android device. The source and browser
+checks above do not close this gate. Existing Cambium or Heartwood acceptance for other clients
+does not establish that this frontend's Android launch, approval and clipboard return work together.
+
+Use an Android browser, the signed Cambium APK and a paired, reachable Heartwood with a disposable
+identity. Preserve existing pairings, user keys and unrelated app grants. Record the exact frontend
+commit, APK version and SHA-256, Android/browser versions, Heartwood firmware and each result.
+An emulator can supplement this check but does not establish physical-device acceptance.
+
+1. Serve the reviewed frontend with `bun run start --host 127.0.0.1 --port 5179 --strictPort`.
+   With the chosen phone attached, run `adb -s <serial> reverse tcp:5179 tcp:5179` and open
+   `http://127.0.0.1:5179` in its browser. Record that URL and the frontend commit. This is the
+   development build; acceptance of a hosted production build requires its own build and URL.
+2. Choose **Login → Android signer → Connect Android signer → Open Android signer**. The link
+   must launch the installed Cambium app, not just have the expected URI in a browser fixture.
+   Approve the selected disposable identity, return to the same browser tab and paste the copied
+   public key. Expect the matching identity and only public identity data for the NIP-55 session.
+3. In that tab's remotely attached Chrome DevTools console, request a controlled event:
+
+   ```js
+   const { Login, getPublisher } = await import('/src/login.ts')
+   const signed = await getPublisher(Login.snapshot()).note('? + & 日本語', eb => eb.kind(1))
+   console.log(JSON.stringify(signed))
+   ```
+
+   While the promise waits, use the browser prompt to open Cambium. Expect one-shot web approval
+   without a remembered browser grant, plus any confirmation required by the Heartwood policy.
+   Paste the copied full event into the browser prompt. Independently verify its signature, identity,
+   kind, time, content and tags against the requested event. This publisher call constructs an event;
+   do not call `broadcast`, publish chat or make a payment.
+4. Reload and repeat signing. Expect the same identity, no repeated public-key request, and a fresh
+   Cambium approval for signing. Exercise NIP-04 and NIP-44 round trips through the same installed-app
+   prompt, including the special-character plaintext above, and verify with an independent peer.
+5. Decline a Cambium signing request, cancel its pending browser prompt, then retry. Expect no
+   signature from the declined operation, no identity change, and successful signing on the retry.
+6. Start another signing request and log out before completing it. Expect its browser prompt to
+   disappear, the pending operation to reject and a later copied result to leave the user logged out.
+   Repeat logout with a second browser tab open; both tabs must discard the saved session.
+7. Record passes, failures and unexercised checks in the receipt. Stop the task's dev server, remove
+   only its ADB reverse mapping and delete task-owned captures after retaining the reviewed evidence.
+
 ## Isolation
 
 Playwright blocks HTTP requests to public hosts and intercepts public relay WebSockets. NIP-46
