@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -30,6 +31,8 @@ jobs:
       - run: bun tsc --noEmit
 
       - run: bun test src packages/zap-stream-api/src/
+
+      - run: bun run build
 
   prebuilt-image:
     runs-on: ubuntu-latest
