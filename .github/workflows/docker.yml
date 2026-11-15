@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.repository == 'v0l/zap.stream'
     permissions:
       contents: read
       actions: write # buildx gha cache
@@ -54,6 +55,7 @@ jobs:
           if-no-files-found: error
 
   merge:
+    if: github.repository == 'v0l/zap.stream'
     runs-on: ubuntu-latest
     needs: build
     steps:
