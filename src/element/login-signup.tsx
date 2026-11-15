@@ -17,6 +17,7 @@ import { useStreamProvider } from "@/hooks/stream-provider"
 import { gtag } from "@/gtm"
 import { defaultLightningAddress, lightningAddressCheckRequired, parsePrivateKey } from "./login-keys"
 import { RemoteLogin } from "./login-remote"
+import { AndroidLogin } from "./login-android"
 
 enum Stage {
   Start = 0,
@@ -25,6 +26,7 @@ enum Stage {
   Wallet = 3,
   SaveKey = 4,
   RemoteSigner = 5,
+  AndroidSigner = 6,
 }
 
 const signupSteps = [Stage.Profile, Stage.Wallet, Stage.SaveKey]
@@ -290,6 +292,12 @@ export function LoginSignup({ close }: { close: () => void }) {
             />
             <LoginOption
               icon="login"
+              title={<FormattedMessage defaultMessage="Android signer" />}
+              subtitle={<FormattedMessage defaultMessage="Use Cambium, Amber or another NIP-55 signer." />}
+              onClick={() => setStage(Stage.AndroidSigner)}
+            />
+            <LoginOption
+              icon="login"
               title={<FormattedMessage defaultMessage="Private key" />}
               subtitle={<FormattedMessage defaultMessage="Paste your nsec. Less secure." />}
               onClick={() => setStage(Stage.PrivateKey)}
@@ -328,6 +336,22 @@ export function LoginSignup({ close }: { close: () => void }) {
           <RemoteLogin
             onConnect={signer => {
               Login.loginWithRemoteSigner(signer)
+              close()
+            }}
+          />
+        </div>
+      )
+    }
+    case Stage.AndroidSigner: {
+      return (
+        <div className="flex flex-col gap-5">
+          <StageHeader
+            title={<FormattedMessage defaultMessage="Connect an Android signer" />}
+            onBack={() => setStage(Stage.Start)}
+          />
+          <AndroidLogin
+            onConnect={signer => {
+              Login.loginWithAndroidSigner(signer)
               close()
             }}
           />

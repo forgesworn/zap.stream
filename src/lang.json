@@ -266,6 +266,9 @@
   "BzQPM+": {
     "defaultMessage": "Destination"
   },
+  "C+5W/A": {
+    "defaultMessage": "Connect an Android signer"
+  },
   "C2e+ht": {
     "defaultMessage": "Edit Stream"
   },
@@ -447,6 +450,9 @@
   "KlqDf6": {
     "defaultMessage": "Sending to"
   },
+  "KvFO4N": {
+    "defaultMessage": "Android signer"
+  },
   "KxfKnW": {
     "defaultMessage": "Withdraw funds"
   },
@@ -485,6 +491,9 @@
   },
   "MjP/sx": {
     "defaultMessage": "Results for {term}"
+  },
+  "Mw5mP0": {
+    "defaultMessage": "Use signer result"
   },
   "N91vpv": {
     "defaultMessage": "Connect {provider}"
@@ -556,6 +565,9 @@
   },
   "PesLat": {
     "defaultMessage": "Publishing..."
+  },
+  "Pg98RU": {
+    "defaultMessage": "Use Cambium, Amber or another NIP-55 signer installed on this Android device. Your private key stays with your signer. Each signing request needs approval and a pasted result."
   },
   "PiEqWT": {
     "defaultMessage": "Stream Provider"
@@ -674,6 +686,9 @@
   },
   "VThwOz": {
     "defaultMessage": "sats"
+  },
+  "Vm6j1U": {
+    "defaultMessage": "Signer result"
   },
   "W+xeab": {
     "defaultMessage": "{d}d {h}h {m}m"
@@ -821,6 +836,9 @@
   "azDTwB": {
     "defaultMessage": "Peak"
   },
+  "b9QN+E": {
+    "defaultMessage": "Use Cambium, Amber or another NIP-55 signer."
+  },
   "bD/ZwY": {
     "defaultMessage": "Edit Cards"
   },
@@ -865,6 +883,9 @@
   },
   "cyR7Kh": {
     "defaultMessage": "Back"
+  },
+  "d3SxM0": {
+    "defaultMessage": "Approve in Cambium or your Android signer, then paste its copied result here."
   },
   "d5zWyh": {
     "defaultMessage": "Test voice"
@@ -1230,11 +1251,17 @@
   "syEQFE": {
     "defaultMessage": "Publish"
   },
+  "t4xXBH": {
+    "defaultMessage": "Open Android signer"
+  },
   "t79aXM": {
     "defaultMessage": "Your current provider offers different streaming endpoints with varying costs and capabilities."
   },
   "tD1e3z": {
     "defaultMessage": "This chat link is not valid."
+  },
+  "tUc7aw": {
+    "defaultMessage": "Connect Android signer"
   },
   "tbMX/+": {
     "defaultMessage": "Stream widgets"
@@ -1337,6 +1364,9 @@
   },
   "xhQMeQ": {
     "defaultMessage": "Expires"
+  },
+  "xknRiL": {
+    "defaultMessage": "Android signer request"
   },
   "xmcVZ0": {
     "defaultMessage": "Search"

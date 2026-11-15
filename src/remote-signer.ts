@@ -169,7 +169,9 @@ class RemoteTransport {
     RemoteApprovals.clear(this.#approvalOwner)
     if (this.#onAbort) this.options.signal?.removeEventListener("abort", this.#onAbort)
     void this.signer?.close()
-    this.pool.destroy()
+    // nostr-tools closes subscriptions and sends CLOSE in promise callbacks.
+    // Revoke synchronously above, then let those sends finish before closing sockets.
+    setTimeout(() => this.pool.destroy(), 0)
     this.key.fill(0)
   }
 }
