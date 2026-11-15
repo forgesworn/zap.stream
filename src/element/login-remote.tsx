@@ -10,7 +10,6 @@ export function RemoteLogin({ onConnect }: { onConnect: (signer: RemoteSigner) =
   const [relay, setRelay] = useState("wss://relay.primal.net")
   const [uri, setUri] = useState("")
   const [error, setError] = useState("")
-  const [authUrl, setAuthUrl] = useState("")
   const [busy, setBusy] = useState(false)
   const attempt = useRef<AbortController | null>(null)
   const { formatMessage } = useIntl()
@@ -23,15 +22,9 @@ export function RemoteLogin({ onConnect }: { onConnect: (signer: RemoteSigner) =
     attempt.current = controller
     setBusy(true)
     setError("")
-    setAuthUrl("")
     setUri("")
     try {
-      const options = {
-        signal: controller.signal,
-        onAuth: (url: string) => {
-          if (!controller.signal.aborted) setAuthUrl(url)
-        },
-      }
+      const options = { signal: controller.signal }
       let signer: RemoteSigner
       if (qr) {
         const pairing = RemoteSigner.pair(relay, window.location.origin, options)
@@ -60,7 +53,6 @@ export function RemoteLogin({ onConnect }: { onConnect: (signer: RemoteSigner) =
         attempt.current = null
         setBusy(false)
         setUri("")
-        setAuthUrl("")
       }
     }
   }
@@ -138,17 +130,11 @@ export function RemoteLogin({ onConnect }: { onConnect: (signer: RemoteSigner) =
               attempt.current = null
               setBusy(false)
               setUri("")
-              setAuthUrl("")
             }}
           >
             <FormattedMessage defaultMessage="Cancel connection" />
           </button>
         </div>
-      )}
-      {authUrl && (
-        <a href={authUrl} target="_blank" rel="noopener noreferrer" className="text-primary break-all">
-          <FormattedMessage defaultMessage="Open your signer's approval page" /> — {new URL(authUrl).host}
-        </a>
       )}
       {error && (
         <p role="alert" className="text-warning">

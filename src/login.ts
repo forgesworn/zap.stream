@@ -23,9 +23,11 @@ export interface LoginSession {
 
 const SESSION_KEY = "session"
 const remoteSigners = new WeakMap<RemoteConnection, RemoteSigner>()
+const disposedConnections = new WeakSet<RemoteConnection>()
 
 export class LoginStore extends ExternalStore<LoginSession | undefined> {
   #session?: LoginSession
+  #storageListener?: (event: StorageEvent) => void
 
   constructor() {
     super()
@@ -68,6 +70,7 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
         if (save) {
           this.#save()
         }
+        this.#watchRemoteSession()
       }
     }
   }
@@ -107,7 +110,8 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
   }
 
   loginWithRemoteSigner(signer: RemoteSigner) {
-    if (signer.closed) throw new Error("Remote signer connection was closed")
+    if (signer.closed || disposedConnections.has(signer.connection))
+      throw new Error("Remote signer connection was closed")
     const next: LoginSession = { type: LoginType.Nip46, pubkey: signer.connection.pubkey, remote: signer.connection }
     next.state = this.#makeState(next)
     // Save before adopting it: failed storage must not leave an invisible login.
@@ -121,11 +125,48 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
     this.#disposeSession()
     this.#session = next
     remoteSigners.set(signer.connection, signer)
+    this.#watchRemoteSession()
     this.notifyChange()
   }
 
+  #watchRemoteSession() {
+    if (!this.#session?.remote) return
+    this.#storageListener = event => {
+      if (event.storageArea !== window.localStorage || (event.key !== SESSION_KEY && event.key !== null)) return
+      const connection = this.#session?.remote
+      if (!connection) return
+      let current: LoginSession | undefined
+      try {
+        current = JSON.parse(window.localStorage.getItem(SESSION_KEY) ?? "null")
+      } catch {
+        /* Invalid or cleared session. */
+      }
+      if (
+        current?.type === LoginType.Nip46 &&
+        isRemoteConnection(current.remote) &&
+        current.pubkey === connection.pubkey &&
+        current.remote.pubkey === connection.pubkey &&
+        current.remote.clientSecret === connection.clientSecret &&
+        current.remote.bunker.pubkey === connection.bunker.pubkey
+      )
+        return
+      this.#disposeSession()
+      this.#session = undefined
+      // Another tab owns the saved replacement. Do not overwrite or remove it.
+      this.notifyChange()
+    }
+    window.addEventListener("storage", this.#storageListener)
+  }
+
   #disposeSession() {
-    if (this.#session?.remote) remoteSigners.get(this.#session.remote)?.close()
+    if (this.#storageListener) window.removeEventListener("storage", this.#storageListener)
+    this.#storageListener = undefined
+    if (this.#session?.remote) {
+      const connection = this.#session.remote
+      disposedConnections.add(connection)
+      remoteSigners.get(connection)?.close()
+      remoteSigners.delete(connection)
+    }
     const state = this.#session?.state
     if (state instanceof UserState) {
       state.off("change")
@@ -186,6 +227,7 @@ export function getSigner(session: LoginSession) {
     }
     case LoginType.Nip46: {
       const connection = unwrap(session.remote)
+      if (disposedConnections.has(connection)) return
       let signer = remoteSigners.get(connection)
       if (!signer || signer.closed) {
         signer = RemoteSigner.restore(connection)

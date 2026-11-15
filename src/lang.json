@@ -830,6 +830,9 @@
   "bhsxzE": {
     "defaultMessage": "Get the zap.stream app"
   },
+  "bkm57L": {
+    "defaultMessage": "Your signer needs approval to continue."
+  },
   "c+JYNI": {
     "defaultMessage": "No thanks"
   },
@@ -1178,6 +1181,9 @@
   "r2Jjms": {
     "defaultMessage": "Log In"
   },
+  "rCdjjL": {
+    "defaultMessage": "Cancel signer request"
+  },
   "rLXNhw": {
     "defaultMessage": "No zaps yet"
   },
@@ -1247,6 +1253,9 @@
   },
   "u3JK57": {
     "defaultMessage": "That doesn't look like a valid private key"
+  },
+  "u3NgvA": {
+    "defaultMessage": "Remote signer approval"
   },
   "u6eOCf": {
     "defaultMessage": "The track from your music status, for music apps that publish one."

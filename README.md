@@ -19,8 +19,12 @@ This repository is a client fork; it does not establish a ForgeSworn streaming s
 Direct connections use NIP-44 encrypted NIP-46 requests. The browser stores a generated client connection
 key, relay addresses and public identity in local storage so it can reconnect after reload. It does not
 receive your signing private key or retain a one-time pairing secret. Treat that browser connection as
-a credential: logout removes it locally and closes the connection; revoke the client in your signer to
-withdraw its permission. Clearing browser data also requires pairing again.
+a credential: logout removes it locally and closes the connection, including in other open tabs.
+Revoke the client in your signer to withdraw its permission. Clearing browser data also requires pairing again.
+
+If the signer asks for web approval, a prompt stays available across the app, including after reload.
+Check the displayed host before opening its HTTPS link. Cancelling the request or letting it time out
+closes that connection and removes the prompt; a later action can reconnect using the saved client key.
 
 For a new hosted origin, Bark may need site access enabled before its NIP-07 provider is available.
 The default pairing relay is `wss://relay.primal.net`; bunker links use their own relay addresses.
@@ -28,7 +32,7 @@ The default pairing relay is `wss://relay.primal.net`; bunker links use their ow
 ## Login verification
 
 ```bash
-bun test src/remote-signer.test.ts src/login.test.ts
+bun test src packages/zap-stream-api/src/
 bun tsc --noEmit
 bun biome lint src/ packages/zap-stream-api/src/
 bun run build
@@ -36,13 +40,17 @@ bun run build
 
 The loopback tests exercise bunker links with and without a secret, QR secret/recipient binding,
 different transport and signing identities, chat (1311), HTTP authentication (27235), NIP-44 encryption,
-restoration, revoked/rejected access, changed events, cancellation and timeouts. The small Bun patch to
+restoration, revoked/rejected access, changed events, cancellation and timeouts. Regression checks cover
+approval prompts after reload, unsafe approval links, pending signing on cross-tab logout, and retained
+session callbacks after logout or account switching. The small Bun patch to
 `@snort/worker-relay@3.0.2` only marks an existing unused argument, allowing the standard strict type check.
 
 Manual integration checks: load Bark, connect it to a test signer and allow the local site; sign in with
 **Browser extension**, sign an event and reload. Repeat via a bunker link and via QR pairing with an
-unlocked Signet, then verify logout clears the saved session. Check an invalid link, reject approval,
-cancel an outstanding connection and retry. Use disposable identities and a local relay for automated
+unlocked Signet, then verify logout clears the saved session in both open tabs. After reload, request a
+signature that requires web approval; confirm the prompt remains visible until approval, cancellation
+or timeout. Check an invalid link, reject approval, cancel an outstanding connection and retry.
+Use disposable identities and a local relay for automated
 tests, without publishing chat or making wallet payments. Public-relay and physical-device checks are
 separate from these local checks.
 

@@ -17,6 +17,9 @@ export class Nip46Fixture {
   readonly server
   silent = false
   changeEvent = false
+  approvalUrl?: string
+  readonly pendingApprovals: Request[] = []
+  onApproval?: () => void
   #subscribers: Array<{ pubkey: string; resolve: () => void }> = []
 
   constructor(readonly options: { secret?: string } = {}) {
@@ -87,6 +90,12 @@ export class Nip46Fixture {
       this.requests.push(request)
       if (request.params.some(p => typeof p !== "string")) throw new Error("NIP-46 params must be strings")
       if (this.silent) return
+      if (this.approvalUrl) {
+        this.pendingApprovals.push(request)
+        this.respond(request.client, { id: request.id, result: "auth_url", error: this.approvalUrl })
+        this.onApproval?.()
+        return
+      }
       try {
         this.respond(event.pubkey, { id: request.id, result: this.handle(request) })
       } catch (error) {
@@ -118,6 +127,12 @@ export class Nip46Fixture {
         return decrypt(second, getConversationKey(this.identity, first))
       default:
         throw new Error("Unsupported method")
+    }
+  }
+
+  approvePending() {
+    for (const request of this.pendingApprovals.splice(0)) {
+      this.respond(request.client, { id: request.id, result: this.handle(request) })
     }
   }
 

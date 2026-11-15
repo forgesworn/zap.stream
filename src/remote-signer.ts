@@ -3,6 +3,7 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
 import { BunkerSigner, createNostrConnectURI, type BunkerPointer } from "nostr-tools/nip46"
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure"
 import { SimplePool } from "nostr-tools/pool"
+import { RemoteApprovals } from "./remote-approvals"
 
 const HEX_KEY = /^[0-9a-f]{64}$/
 const REQUEST_TIMEOUT = 120_000
@@ -98,6 +99,8 @@ class RemoteTransport {
   signer?: BunkerSigner
   readonly timeoutMs: number
   #onAbort?: () => void
+  #requests = 0
+  #approvalOwner = Symbol()
 
   get bunker() {
     if (!this.signer) throw new Error("Remote signer is not connected")
@@ -120,12 +123,16 @@ class RemoteTransport {
       skipSwitchRelays: true,
       onauth: (url: string) => {
         // Never navigate automatically to an address supplied by a remote signer.
+        if (this.controller.signal.aborted) return
+        const approvedUrl = RemoteApprovals.show(this.#approvalOwner, url, () => this.close())
+        if (!approvedUrl) {
+          this.close()
+          return
+        }
         try {
-          const parsed = new URL(url)
-          if (!this.controller.signal.aborted && parsed.protocol === "https:" && !parsed.username && !parsed.password)
-            this.options.onAuth?.(parsed.href)
+          this.options.onAuth?.(approvedUrl)
         } catch {
-          /* Ignore malformed approval addresses. */
+          this.close()
         }
       },
     }
@@ -134,6 +141,7 @@ class RemoteTransport {
   async request<T>(run: () => Promise<T>): Promise<T> {
     const signal = this.controller.signal
     if (signal.aborted) throw new Error("Remote signer connection was closed")
+    this.#requests++
     let timer: ReturnType<typeof setTimeout> | undefined
     let onAbort: () => void = () => {}
     try {
@@ -151,12 +159,14 @@ class RemoteTransport {
     } finally {
       clearTimeout(timer)
       signal.removeEventListener("abort", onAbort)
+      if (--this.#requests === 0) RemoteApprovals.clear(this.#approvalOwner)
     }
   }
 
   close() {
     if (this.controller.signal.aborted) return
     this.controller.abort()
+    RemoteApprovals.clear(this.#approvalOwner)
     if (this.#onAbort) this.options.signal?.removeEventListener("abort", this.#onAbort)
     void this.signer?.close()
     this.pool.destroy()

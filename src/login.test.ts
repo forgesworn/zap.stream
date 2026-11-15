@@ -80,3 +80,58 @@ test("a storage failure keeps the previous session instead of adopting a remote 
     signer.close()
   }
 })
+
+test("retained session callbacks cannot reopen a signer after logout or account switching", async () => {
+  using fixture = new Nip46Fixture()
+  const signer = await RemoteSigner.connect(fixture.bunkerUri)
+  const store = new LoginStore()
+  try {
+    store.loginWithRemoteSigner(signer)
+    const stale = store.takeSnapshot()
+    if (!stale) throw new Error("Missing session")
+    store.logout()
+    expect(signer.closed).toBe(true)
+    expect(getSigner(stale)).toBeUndefined()
+    const second = await RemoteSigner.connect(fixture.bunkerUri)
+    store.loginWithRemoteSigner(second)
+    const switched = store.takeSnapshot()
+    if (!switched) throw new Error("Missing second session")
+    store.loginWithPubkey(getPublicKey(generateSecretKey()))
+    expect(second.closed).toBe(true)
+    expect(getSigner(switched)).toBeUndefined()
+  } finally {
+    store.logout()
+    signer.close()
+  }
+})
+
+test("logout or account replacement in another tab closes the signer without erasing the replacement", async () => {
+  using fixture = new Nip46Fixture()
+  const signer = await RemoteSigner.connect(fixture.bunkerUri)
+  const store = new LoginStore()
+  try {
+    store.loginWithRemoteSigner(signer)
+    const session = store.takeSnapshot()
+    if (!session) throw new Error("Missing session")
+    // A profile change in another tab keeps this connection authorised.
+    window.dispatchEvent(new StorageEvent("storage", { key: "session", storageArea: window.localStorage }))
+    expect(signer.closed).toBe(false)
+    const replacement = JSON.stringify({ type: LoginType.Nip7, pubkey: getPublicKey(generateSecretKey()) })
+    window.localStorage.setItem("session", replacement)
+    window.dispatchEvent(new StorageEvent("storage", { key: "session", storageArea: window.localStorage }))
+    expect(signer.closed).toBe(true)
+    expect(store.takeSnapshot()).toBeUndefined()
+    expect(getSigner(session)).toBeUndefined()
+    expect(window.localStorage.getItem("session")).toBe(replacement)
+
+    const next = await RemoteSigner.connect(fixture.bunkerUri)
+    store.loginWithRemoteSigner(next)
+    window.localStorage.clear()
+    window.dispatchEvent(new StorageEvent("storage", { key: null, storageArea: window.localStorage }))
+    expect(next.closed).toBe(true)
+    expect(store.takeSnapshot()).toBeUndefined()
+  } finally {
+    store.logout()
+    signer.close()
+  }
+})
