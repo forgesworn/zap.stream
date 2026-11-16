@@ -66,8 +66,11 @@ pairing, and Cambium-compatible NIP-55. It verifies event signatures, saved iden
 rejection and retry. NIP-07 and NIP-55 providers are protocol fixtures; NIP-46 uses a real loopback
 WebSocket relay and encrypted requests. HTTP requests to public hosts are blocked and public relay
 WebSockets are intercepted, so generated accounts and test events stay local. Android intent handling
-and installed signer applications require their own integration check. Source-level Cambium interoperability
-and the verification boundaries are recorded in [the login matrix receipt](docs/verification/login-matrix.md).
+and installed signer applications require their own integration check. The
+[physical Pixel/Cambium/Heartwood receipt](docs/verification/pixel-cambium-2026-11-16.md) records a
+passing development-build run for login, signing, both encryption methods, cancellation and logout.
+Source-level interoperability and remaining verification boundaries are recorded in
+[the login matrix receipt](docs/verification/login-matrix.md).
 
 Manual integration checks: load Bark, connect it to a test signer and allow the local site; sign in with
 **Browser extension**, sign an event and reload. Repeat via a bunker link and via QR pairing with an

@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "status": "passed within recorded scope",
+  "date": "2026-11-16",
+  "frontendCommit": "739820d57555693f0cf2033cc5a444fa009d9ed4",
+  "build": "Vite development server",
+  "url": "http://127.0.0.1:5179",
+  "device": {
+    "model": "Pixel 10 Pro XL",
+    "android": "17",
+    "api": 37,
+    "physical": true
+  },
+  "browser": {
+    "package": "app.vanadium.browser",
+    "version": "157.0.8103.78.0"
+  },
+  "signer": {
+    "package": "dev.forgesworn.cambium",
+    "version": "0.9.1",
+    "versionCode": 20,
+    "installedApkSha256": "b9f11de0969098a8a640dc425ea29760d8c9147082c8c7b9f4d21d004b8b3693",
+    "matchesPublishedRelease": true
+  },
+  "heartwood": {
+    "existingPairing": true,
+    "firmwareRevision": "not observed"
+  },
+  "checks": [
+    {
+      "check": "login-real-clipboard",
+      "passed": true
+    },
+    {
+      "check": "fresh-signature",
+      "signature": true,
+      "eventId": true,
+      "identity": true,
+      "kind": true,
+      "time": true,
+      "tags": true,
+      "content": true,
+      "passed": true
+    },
+    {
+      "check": "reload-with-public-identity-only",
+      "passed": true
+    },
+    {
+      "check": "sign-after-reload",
+      "signature": true,
+      "eventId": true,
+      "identity": true,
+      "kind": true,
+      "time": true,
+      "tags": true,
+      "content": true,
+      "passed": true
+    },
+    {
+      "check": "nip04-encrypt",
+      "unicode": true,
+      "specialCharacters": true,
+      "leadingAndTrailingWhitespace": true,
+      "passed": true
+    },
+    {
+      "check": "nip04-decrypt",
+      "unicode": true,
+      "specialCharacters": true,
+      "leadingAndTrailingWhitespace": true,
+      "passed": true
+    },
+    {
+      "check": "nip44-encrypt",
+      "unicode": true,
+      "specialCharacters": true,
+      "leadingAndTrailingWhitespace": true,
+      "passed": true
+    },
+    {
+      "check": "nip44-decrypt",
+      "unicode": true,
+      "specialCharacters": true,
+      "leadingAndTrailingWhitespace": true,
+      "passed": true
+    },
+    {
+      "check": "decline-and-browser-cancel",
+      "passed": true
+    },
+    {
+      "check": "retry-after-decline",
+      "signature": true,
+      "eventId": true,
+      "identity": true,
+      "kind": true,
+      "time": true,
+      "tags": true,
+      "content": true,
+      "passed": true
+    },
+    {
+      "check": "logout-with-real-unsubmitted-signature",
+      "loggedOut": true,
+      "storageCleared": true,
+      "promptGone": true,
+      "pendingRejected": true,
+      "error": "Android signer connection was closed",
+      "lateResultIgnored": true,
+      "passed": true
+    },
+    {
+      "check": "valid-other-identity-rejected-controlled-fixture",
+      "passed": true,
+      "error": "The signer returned a different identity or event"
+    },
+    {
+      "check": "cross-tab-logout-with-two-pending-requests",
+      "passed": true,
+      "first": {
+        "loggedOut": true,
+        "savedSessionGone": true,
+        "queueEmpty": true,
+        "promptGone": true,
+        "pendingRejected": true
+      },
+      "second": {
+        "loggedOut": true,
+        "savedSessionGone": true,
+        "queueEmpty": true,
+        "promptGone": true,
+        "pendingRejected": true
+      }
+    }
+  ],
+  "publicRelayPublishAttemptsObserved": 0,
+  "scope": "Installed browser and Cambium with existing Heartwood pairing; development frontend only",
+  "limitations": [
+    "Heartwood firmware revision not observed",
+    "Installed Signet, Bark and Amber not tested",
+    "Hosted production build not tested",
+    "Controlled wrong-identity case used a disposable software peer",
+    "Intermittent control-connection delays required readback before confirming NIP-44 results"
+  ],
+  "cleanup": {
+    "taskTabsClosed": true,
+    "testOriginStorageCleared": true,
+    "testClipboardCleared": true,
+    "existingPairingRetained": true,
+    "initialForegroundAppRestored": true,
+    "temporaryAdbMappingsRemoved": true,
+    "taskServersAndTunnelStopped": true
+  }
+}
