@@ -104,3 +104,20 @@ Playwright blocks HTTP requests to public hosts and intercepts public relay WebS
 requests go to a loopback relay fixture with disposable signing and transport keys. No test publishes
 chat or authentication events to a public relay, makes a payment, changes a signer permission or
 contacts a maintainer. Test servers and relay fixtures are stopped by Playwright at completion.
+
+## Remote-session recovery follow-up (16 November 2026)
+
+Upstream contribution: https://github.com/v0l/zap.stream/pull/99, reviewed head
+`6383a008ba682f3c4f7b0eaf22cec84fc6e08d6b`. Its fork CI passed 153 unit/integration
+tests, 18 browser cases, lint, types and both builds. Separate automated review
+found no remaining blocking issues in the scoped signing/recovery changes.
+
+The fork also carries the reviewed remote-session fixes: retry initial cancelled
+or refused decryption, preserve successfully synced encrypted lists and pending
+changes when replacing a transport, reject retired state delegates, and prevent
+queued cross-tab logout from being undone by stale remote-session saves. The
+Android login branch is retained; the complete fork suite must pass before merge.
+
+Installed Cambium/Heartwood and Amber device checks remain pending. No Android
+device was attached during this follow-up. Browser/protocol fixtures do not
+establish installed-app or physical-device acceptance.
