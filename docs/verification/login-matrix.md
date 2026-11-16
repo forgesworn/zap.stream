@@ -55,11 +55,18 @@ The login screens and README direct Amber users to **Remote signer** with a bunk
 route avoids the Android URI parser. The NIP-46 protocol is covered by the loopback suite;
 an installed Amber app has not been exercised, so this recommendation is not a compatibility receipt.
 
-## Pending Cambium installed-device acceptance
+## Cambium installed-device acceptance
 
-**Status: pending.** On 2026-11-15, ADB listed no attached Android device. The source and browser
-checks above do not close this gate. Existing Cambium or Heartwood acceptance for other clients
-does not establish that this frontend's Android launch, approval and clipboard return work together.
+**Status: passed for the recorded development build and device combination.** On 2026-11-16,
+the physical Pixel 10 Pro XL on M4 completed the browser launch, Cambium 0.9.1 one-shot approval,
+real clipboard return, independent signature verification, reload, NIP-04/NIP-44 in both directions,
+decline/cancel/retry, late-result rejection and two-tab logout checks. See the
+[physical receipt](pixel-cambium-2026-11-16.md) and its
+[structured assertions](pixel-cambium-2026-11-16.json). Heartwood's firmware revision was not observed;
+hosted production and other installed signers still require their own acceptance.
+
+The procedure below is retained for repeat runs. The recorded run used the existing user-authorised
+pairing without changing its identity, keys or grants.
 
 Use an Android browser, the signed Cambium APK and a paired, reachable Heartwood with a disposable
 identity. Preserve existing pairings, user keys and unrelated app grants. Record the exact frontend
@@ -118,6 +125,6 @@ changes when replacing a transport, reject retired state delegates, and prevent
 queued cross-tab logout from being undone by stale remote-session saves. The
 Android login branch is retained; the complete fork suite must pass before merge.
 
-Installed Cambium/Heartwood and Amber device checks remain pending. No Android
-device was attached during this follow-up. Browser/protocol fixtures do not
-establish installed-app or physical-device acceptance.
+The later Cambium/Heartwood physical run above closes the NIP-55 device gate for
+its recorded combination. Installed Amber acceptance remains pending; no NIP-46
+physical-device claim follows from the Cambium clipboard test.
