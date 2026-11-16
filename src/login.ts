@@ -1,5 +1,14 @@
 import { ExternalStore, unwrap } from "@snort/shared"
-import { EventKind, EventPublisher, Nip7Signer, PrivateKeySigner, UserState, type UserStateObject } from "@snort/system"
+import {
+  EventKind,
+  EventPublisher,
+  Nip7Signer,
+  PrivateKeySigner,
+  UserState,
+  type UserStateObject,
+  type EventSigner,
+  type SystemInterface,
+} from "@snort/system"
 import { isRemoteConnection, RemoteSigner, type RemoteConnection } from "./remote-signer"
 import { AndroidSigner, isAndroidConnection, type AndroidConnection } from "./android-signer"
 
@@ -25,13 +34,83 @@ export interface LoginSession {
 }
 
 const SESSION_KEY = "session"
-const remoteSigners = new WeakMap<RemoteConnection, RemoteSigner>()
+const remoteSigners = new WeakMap<RemoteConnection, () => RemoteSigner | undefined>()
 const androidSigners = new WeakMap<AndroidConnection, AndroidSigner>()
 const disposedConnections = new WeakSet<object>()
+
+function matchesRemoteSession(json: string | null, connection: RemoteConnection) {
+  try {
+    const saved: LoginSession | null = JSON.parse(json ?? "null")
+    return (
+      saved?.type === LoginType.Nip46 &&
+      isRemoteConnection(saved.remote) &&
+      saved.pubkey === connection.pubkey &&
+      saved.remote.pubkey === connection.pubkey &&
+      saved.remote.clientSecret === connection.clientSecret &&
+      saved.remote.bunker.pubkey === connection.bunker.pubkey
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Keep completed list state across transports, but retry interrupted initial decryption. */
+class RemoteUserState extends UserState<never> {
+  syncStatus: "new" | "initialising" | "synced" | "retry" = "new"
+
+  constructor(
+    pubkey: string,
+    initial: UserStateObject<never> | undefined,
+    private readonly currentSigner: () => RemoteSigner | undefined,
+  ) {
+    super(pubkey, undefined, initial)
+  }
+
+  override async init(signer: EventSigner | undefined, system: SystemInterface) {
+    if (this.didInit) return super.init(signer, system)
+    this.syncStatus = "initialising"
+    let failedRead = false
+    const read = async <T>(operation: () => T | Promise<T>): Promise<T> => {
+      try {
+        return await operation()
+      } catch (error) {
+        failedRead = true
+        throw error
+      }
+    }
+    const current = () => {
+      const active = this.currentSigner()
+      if (!active) throw new Error("Remote signer session was closed")
+      return active
+    }
+    // Delegation never opens a transport. Only an explicit getSigner call can
+    // reconnect, and the owning store rejects callbacks from retired states.
+    const delegate: EventSigner = {
+      init: () => current().init(),
+      getPubKey: () => read(() => current().getPubKey()),
+      nip4Encrypt: (content, key) => current().nip4Encrypt(content, key),
+      nip4Decrypt: (content, key) => read(() => current().nip4Decrypt(content, key)),
+      nip44Encrypt: (content, key) => current().nip44Encrypt(content, key),
+      nip44Decrypt: (content, key) => read(() => current().nip44Decrypt(content, key)),
+      sign: event => current().sign(event),
+      get supports() {
+        return current().supports
+      },
+    }
+    try {
+      await super.init(signer ? delegate : undefined, system)
+      this.syncStatus = !failedRead && signer instanceof RemoteSigner && !signer.closed ? "synced" : "retry"
+    } catch (error) {
+      this.syncStatus = "retry"
+      throw error
+    }
+  }
+}
 
 export class LoginStore extends ExternalStore<LoginSession | undefined> {
   #session?: LoginSession
   #storageListener?: (event: StorageEvent) => void
+  #remoteSigner?: RemoteSigner
 
   constructor() {
     super()
@@ -81,13 +160,19 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
     }
   }
 
-  #makeState(session = this.#session) {
+  #makeState(session = this.#session, initial = session?.state as UserStateObject<never> | undefined) {
     if (session) {
-      const ret = new UserState(session.pubkey, undefined, session.state as UserStateObject<never> | undefined)
+      const ret =
+        session.type === LoginType.Nip46
+          ? new RemoteUserState(session.pubkey, initial, () => {
+              if (this.#session?.state !== ret || !session.remote || !this.#ownsRemoteSession(session.remote)) return
+              return this.#remoteSigner
+            })
+          : new UserState<never>(session.pubkey, undefined, initial)
       ret.checkIsStandardList(EventKind.StorageServerList)
       ret.checkIsStandardList(EventKind.MuteList)
       ret.on("change", () => {
-        this.#save()
+        if (this.#session?.state === ret) this.#save()
       })
       return ret
     }
@@ -119,7 +204,9 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
     if (signer.closed || disposedConnections.has(signer.connection))
       throw new Error("Remote signer connection was closed")
     const next: LoginSession = { type: LoginType.Nip46, pubkey: signer.connection.pubkey, remote: signer.connection }
-    this.#adoptSigner(next, () => remoteSigners.set(signer.connection, signer))
+    this.#adoptSigner(next, () => {
+      this.#remoteSigner = signer
+    })
   }
 
   loginWithAndroidSigner(signer: AndroidSigner) {
@@ -146,41 +233,75 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
     this.notifyChange()
   }
 
+  #revokeRemoteSession() {
+    this.#disposeSession()
+    this.#session = undefined
+    // Another tab may own the saved replacement. Do not overwrite it.
+    this.notifyChange()
+  }
+
+  #ownsRemoteSession(connection: RemoteConnection) {
+    if (this.#session?.remote !== connection) return false
+    if (matchesRemoteSession(window.localStorage.getItem(SESSION_KEY), connection)) return true
+    this.#revokeRemoteSession()
+    return false
+  }
+
+  #getRemoteSigner(connection: RemoteConnection) {
+    if (!this.#ownsRemoteSession(connection)) return
+    const previous = this.#session?.state
+    const closed = this.#remoteSigner?.closed
+    if (!this.#remoteSigner || closed) this.#remoteSigner = RemoteSigner.restore(connection)
+    // UserState catches decrypt errors and memoises init. Retry an interrupted
+    // initial sync, retaining completed lists and their pending local changes.
+    if (
+      previous instanceof RemoteUserState &&
+      (previous.syncStatus === "retry" || (closed && previous.syncStatus !== "synced"))
+    ) {
+      const initial = previous.serialize()
+      previous.off("change")
+      previous.destroy()
+      if (this.#session) this.#session.state = this.#makeState(this.#session, initial)
+      this.notifyChange()
+    }
+    return this.#remoteSigner
+  }
+
   #watchSignerSession() {
-    if (!this.#session?.remote && !this.#session?.android) return
+    const connection = this.#session?.remote
+    const android = this.#session?.android
+    if (!connection && !android) return
+    if (connection) remoteSigners.set(connection, () => this.#getRemoteSigner(connection))
     this.#storageListener = event => {
       if (event.storageArea !== window.localStorage || (event.key !== SESSION_KEY && event.key !== null)) return
-      const connection = this.#session?.remote
-      const android = this.#session?.android
-      if (!connection && !android) return
-      let current: LoginSession | undefined
-      try {
-        current = JSON.parse(window.localStorage.getItem(SESSION_KEY) ?? "null")
-      } catch {
-        /* Invalid or cleared session. */
+      if (!connection) {
+        let current: LoginSession | undefined
+        try {
+          current = JSON.parse(window.localStorage.getItem(SESSION_KEY) ?? "null")
+        } catch {
+          /* Invalid session. */
+        }
+        if (
+          android &&
+          current?.type === LoginType.Nip55 &&
+          isAndroidConnection(current.android) &&
+          current.pubkey === android.pubkey &&
+          current.android.pubkey === android.pubkey
+        )
+          return
+        this.#revokeRemoteSession()
+        return
       }
-      if (
-        connection &&
-        current?.type === LoginType.Nip46 &&
-        isRemoteConnection(current.remote) &&
-        current.pubkey === connection.pubkey &&
-        current.remote.pubkey === connection.pubkey &&
-        current.remote.clientSecret === connection.clientSecret &&
-        current.remote.bunker.pubkey === connection.bunker.pubkey
-      )
+      // Storage events are queued: rereading storage alone can miss a logout
+      // if a stale tab saved the old credential before the event arrived.
+      if (matchesRemoteSession(event.oldValue, connection) && !matchesRemoteSession(event.newValue, connection)) {
+        if (matchesRemoteSession(window.localStorage.getItem(SESSION_KEY), connection)) {
+          window.localStorage.removeItem(SESSION_KEY)
+        }
+        this.#revokeRemoteSession()
         return
-      if (
-        android &&
-        current?.type === LoginType.Nip55 &&
-        isAndroidConnection(current.android) &&
-        current.pubkey === android.pubkey &&
-        current.android.pubkey === android.pubkey
-      )
-        return
-      this.#disposeSession()
-      this.#session = undefined
-      // Another tab owns the saved replacement. Do not overwrite or remove it.
-      this.notifyChange()
+      }
+      this.#ownsRemoteSession(connection)
     }
     window.addEventListener("storage", this.#storageListener)
   }
@@ -191,7 +312,8 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
     if (this.#session?.remote) {
       const connection = this.#session.remote
       disposedConnections.add(connection)
-      remoteSigners.get(connection)?.close()
+      this.#remoteSigner?.close()
+      this.#remoteSigner = undefined
       remoteSigners.delete(connection)
     }
     if (this.#session?.android) {
@@ -208,6 +330,9 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
   }
 
   logout() {
+    if (!this.#session) return
+    const connection = this.#session.remote
+    if (connection && !this.#ownsRemoteSession(connection)) return
     this.#disposeSession()
     this.#session = undefined
     this.#save()
@@ -230,6 +355,7 @@ export class LoginStore extends ExternalStore<LoginSession | undefined> {
   }
 
   #save() {
+    if (this.#session?.remote && !this.#ownsRemoteSession(this.#session.remote)) return
     if (this.#session) {
       const ses = { ...this.#session } as Record<string, unknown>
       if (this.#session.state instanceof UserState) {
@@ -261,12 +387,7 @@ export function getSigner(session: LoginSession) {
     case LoginType.Nip46: {
       const connection = unwrap(session.remote)
       if (disposedConnections.has(connection)) return
-      let signer = remoteSigners.get(connection)
-      if (!signer || signer.closed) {
-        signer = RemoteSigner.restore(connection)
-        remoteSigners.set(connection, signer)
-      }
-      return signer
+      return remoteSigners.get(connection)?.()
     }
     case LoginType.Nip55: {
       const connection = unwrap(session.android)
