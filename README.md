@@ -15,10 +15,14 @@ This repository is a client fork; it does not establish a ForgeSworn streaming s
 - **Remote signer**: choose **Login → Remote signer** and paste a `bunker://` link from Signet or another
   NIP-46 signer. Alternatively, open **Pair by QR code instead**, choose a relay your signer can reach,
   create the code, then scan it or paste the connection link into your signer and approve.
-- **Android signer**: on Android with Cambium, Amber or another NIP-55 signer installed, choose
+- **Android signer**: on Android with Cambium or another compatible NIP-55 signer installed, choose
   **Login → Android signer → Connect Android signer**. Open the signer, approve, return to the browser
   and paste its copied public key. Each later signing or encryption request uses the same approval
   and paste flow. Cambium delegates signing to your paired Heartwood; it is not a NIP-46 server.
+- **Amber**: use its `bunker://` link through **Login → Remote signer**. Amber 6.6.9's Android URI
+  parser truncates encoded payloads containing `?`, so this fork does not claim reliable Amber
+  clipboard signing. The [verification receipt](docs/verification/login-matrix.md#amber-compatibility)
+  links the affected source and distinguishes the recommended route from installed-app evidence.
 
 Android signing uses the [NIP-55 web clipboard transport](https://github.com/nostr-protocol/nips/blob/master/55.md),
 without a callback URL. The browser retains only the public identity for this login method. Requests

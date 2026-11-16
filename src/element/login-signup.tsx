@@ -293,7 +293,7 @@ export function LoginSignup({ close }: { close: () => void }) {
             <LoginOption
               icon="login"
               title={<FormattedMessage defaultMessage="Android signer" />}
-              subtitle={<FormattedMessage defaultMessage="Use Cambium, Amber or another NIP-55 signer." />}
+              subtitle={<FormattedMessage defaultMessage="Approve and paste results from an installed Android signer." />}
               onClick={() => setStage(Stage.AndroidSigner)}
             />
             <LoginOption
